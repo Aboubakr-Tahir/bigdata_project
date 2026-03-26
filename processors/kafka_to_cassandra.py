@@ -1,30 +1,65 @@
 import json
+import time
+import os
 from confluent_kafka import Consumer, KafkaError
 from cassandra.cluster import Cluster
-from cassandra.query import SimpleStatement
 from datetime import datetime
-import os
 
 kafka_server = os.getenv('KAFKA_BOOTSTRAP', 'localhost:9092')
 cassandra_host = os.getenv('CASSANDRA_HOST', '127.0.0.1')
 
 # --- CONFIGURATION ---
 KAFKA_CONF = {
-    'bootstrap.servers': kafka_server, # On est sur le Host, donc localhost
+    'bootstrap.servers': kafka_server,
     'group.id': 'cassandra-consumer-group',
     'auto.offset.reset': 'earliest'
 }
 CASSANDRA_NODES = [cassandra_host]
 TOPIC = 'test-iot'
 
-def connect_cassandra():
+def connect_cassandra(retries=10, delay=10):
     cluster = Cluster(CASSANDRA_NODES)
-    session = cluster.connect('smart_city')
-    return session
+    session = None
+    
+    for i in range(retries):
+        try:
+            print(f"[-] Tentative de connexion à Cassandra ({i+1}/{retries})...")
+            # 1. On se connecte sans spécifier de keyspace d'abord
+            session = cluster.connect()
+            
+            # 2. On crée le keyspace manuellement s'il n'existe pas
+            print("[-] Vérification/Création du Keyspace 'smart_city'...")
+            session.execute("""
+                CREATE KEYSPACE IF NOT EXISTS smart_city 
+                WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+            """)
+            
+            # 3. On bascule sur le keyspace
+            session.set_keyspace('smart_city')
+            
+            # 4. On s'assure que la table existe
+            session.execute("""
+                CREATE TABLE IF NOT EXISTS telemetry (
+                    device_id text,
+                    timestamp timestamp,
+                    cpu_usage_percent float,
+                    ram_available_mb float,
+                    temperature_c float,
+                    PRIMARY KEY (device_id, timestamp)
+                ) WITH CLUSTERING ORDER BY (timestamp DESC);
+            """)
+            
+            print("[V] Cassandra est prête et le schéma est initialisé !")
+            return session
+        except Exception as e:
+            print(f"[!] Erreur: {e}")
+            time.sleep(delay)
+            
+    raise Exception("Impossible d'initialiser Cassandra.")
 
 def main():
     # Connexion Cassandra
-    print("[-] Connexion à Cassandra...")
+    print("[-] Démarrage de la connexion à Cassandra...")
     session = connect_cassandra()
     
     # Préparation de la requête (Prepared Statement pour la performance)
@@ -59,7 +94,6 @@ def main():
                 data = json.loads(msg.value().decode('utf-8'))
                 
                 # 2. Convertir le timestamp ISO en objet datetime Python
-                # Cassandra accepte les objets datetime directement
                 ts_obj = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
 
                 # 3. Insertion dans Cassandra
