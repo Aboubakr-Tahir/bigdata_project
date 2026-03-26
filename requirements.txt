@@ -1,0 +1,4 @@
+confluent-kafka
+cassandra-driver
+streamlit
+pandas
