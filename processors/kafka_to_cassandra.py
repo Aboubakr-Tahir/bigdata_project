@@ -3,14 +3,18 @@ from confluent_kafka import Consumer, KafkaError
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
 from datetime import datetime
+import os
+
+kafka_server = os.getenv('KAFKA_BOOTSTRAP', 'localhost:9092')
+cassandra_host = os.getenv('CASSANDRA_HOST', '127.0.0.1')
 
 # --- CONFIGURATION ---
 KAFKA_CONF = {
-    'bootstrap.servers': 'localhost:9092', # On est sur le Host, donc localhost
+    'bootstrap.servers': kafka_server, # On est sur le Host, donc localhost
     'group.id': 'cassandra-consumer-group',
     'auto.offset.reset': 'earliest'
 }
-CASSANDRA_NODES = ['127.0.0.1']
+CASSANDRA_NODES = [cassandra_host]
 TOPIC = 'test-iot'
 
 def connect_cassandra():

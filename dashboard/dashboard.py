@@ -3,10 +3,14 @@ import pandas as pd
 from confluent_kafka import Consumer, KafkaError
 import json
 import time
+import os
+
+
+kafka_server = os.getenv('KAFKA_BOOTSTRAP', 'localhost:9092')
 
 # --- CONFIGURATION KAFKA ---
 KAFKA_CONF = {
-    'bootstrap.servers': 'localhost:9092',
+    'bootstrap.servers': kafka_server,
     'group.id': 'streamlit-live-dashboard', # Nouveau groupe pour ne pas interférer
     'auto.offset.reset': 'latest'          # On ne lit que les nouveaux messages
 }

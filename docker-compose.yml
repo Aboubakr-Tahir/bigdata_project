@@ -4,8 +4,8 @@ services:
     image: apache/nifi:1.23.2
     container_name: nifi-bridge
     ports:
-      - "8080:8080" # Interface Web
-      - "9999:9999" # Port d'écoute pour MiNiFi (ListenHTTP)
+      - "8080:8080"
+      - "9999:9999"
     environment:
       - NIFI_WEB_HTTP_PORT=8080
       - SINGLE_USER_CREDENTIALS_USERNAME=admin
@@ -14,13 +14,8 @@ services:
       - nifi-data:/opt/nifi/nifi-current/conf
     networks:
       - iot_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/nifi"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
-  # --- STREAMING : Apache Kafka (KRaft mode) ---
+  # --- STREAMING : Apache Kafka ---
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka-broker
@@ -56,6 +51,32 @@ services:
       - cassandra-data:/var/lib/cassandra
     networks:
       - iot_network
+
+  # --- CONSUMER : Python Script (DÉPLACÉ ICI DANS SERVICES) ---
+  python-consumer:
+    build:
+      context: .
+      dockerfile: processors/Dockerfile
+    container_name: python-consumer
+    depends_on:
+      - kafka
+      - cassandra
+    networks:
+      - iot_network
+    restart: always
+
+  live-dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: streamlit-dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      - kafka
+    networks:
+      - iot_network
+    restart: always
 
 networks:
   iot_network:
