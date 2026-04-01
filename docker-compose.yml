@@ -15,27 +15,18 @@ services:
     networks:
       - iot_network
 
-  
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka-broker
+  # --- AJOUT DE RABBITMQ (Remplacement de Kafka) ---
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-broker
     ports:
-      - "9092:9092"
+      - "5672:5672"   # Port principal pour la communication AMQP
+      - "15672:15672" # Port pour l'interface web de management
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,ANYWHERE:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,ANYWHERE://localhost:9092'
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,ANYWHERE://0.0.0.0:9092'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=supersecretpassword123
     volumes:
-      - kafka-data:/var/lib/kafka/data
+      - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - iot_network
 
@@ -60,7 +51,7 @@ services:
       dockerfile: processors/Dockerfile
     container_name: python-consumer
     depends_on:
-      - kafka
+      - rabbitmq # Mis à jour : attend RabbitMQ
       - cassandra
     networks:
       - iot_network
@@ -74,7 +65,7 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      - kafka
+      - rabbitmq # Mis à jour : attend RabbitMQ
     networks:
       - iot_network
     restart: always
@@ -85,5 +76,5 @@ networks:
 
 volumes:
   nifi-data:
-  kafka-data:
   cassandra-data:
+  rabbitmq-data: # Nouveau volume pour RabbitMQ (remplace kafka-data)

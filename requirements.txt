@@ -1,5 +1,5 @@
-confluent-kafka
+pika
 cassandra-driver
-streamlit
-pandas
 psutil
+pandas
+streamlit

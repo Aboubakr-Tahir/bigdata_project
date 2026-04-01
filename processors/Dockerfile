@@ -2,14 +2,18 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y gcc librdkafka-dev && rm -rf /var/lib/apt/lists/*
+# Suppression de librdkafka-dev car pika (RabbitMQ) n'en a pas besoin
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY processors/kafka_to_cassandra.py .
+# Copie du nouveau nom de script
+COPY processors/rabbitMQ_to_cassandra.py .
 
-ENV KAFKA_BOOTSTRAP="kafka-broker:29092"
+# Mise à jour des variables d'environnement pour RabbitMQ
+ENV RABBIT_HOST="rabbitmq"
 ENV CASSANDRA_HOST="cassandra-db"
 
-CMD ["python", "-u", "kafka_to_cassandra.py"]
+# Commande de lancement mise à jour
+CMD ["python", "-u", "rabbitMQ_to_cassandra.py"]
